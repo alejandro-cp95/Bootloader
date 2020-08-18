@@ -74,7 +74,7 @@
 /* #define USE_FULL_ASSERT    1U */
 
 /* USER CODE BEGIN Private defines */
-
+#define FLASH_PAGE16_BASE_ADDRESS 0x08008000U
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
