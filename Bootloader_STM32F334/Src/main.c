@@ -38,6 +38,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <stdarg.h>
 #include <string.h>
+#include <stdint.h>
 
 /* USER CODE BEGIN Includes */
 #include "main.h"
@@ -74,6 +75,8 @@ static void printmsg(char* format,...);
 /* USER CODE BEGIN 0 */
 #define D_UART &huart1
 #define C_UART &huart2
+
+uint8_t bl_rx_buffer [200];
 
 /* USER CODE END 0 */
 
@@ -277,6 +280,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+
 }
 
 /* USER CODE BEGIN 4 */
@@ -297,7 +301,55 @@ void printmsg(char* format,...)
 
 void bootloader_uart_read_data(void)
 {
-
+	uint8_t rcv_len=0;
+	while(1)
+	{
+		memset(bl_rx_buffer,0,200);
+		/* Here we will read and decode the commands coming from host
+		 * First read only one byte from the host, which is the "length" field of the command packet */
+		HAL_UART_Receive(C_UART, bl_rx_buffer,1,HAL_MAX_DELAY);
+		rcv_len=bl_rx_buffer[0];
+		HAL_UART_Receive(C_UART,&bl_rx_buffer[1],rcv_len,HAL_MAX_DELAY);
+		switch(bl_rx_buffer[1])
+		{
+			case BL_GET_VER:
+				bootloader_handle_getver_cmd(bl_rx_buffer);
+				break;
+			case BL_GET_HELP:
+				bootloader_handle_gethelp_cmd(bl_rx_buffer);
+				break;
+			case BL_GET_CID:
+				bootloader_handle_getcid_cmd(bl_rx_buffer);
+				break;
+			case BL_GET_RDP_STATUS:
+				bootloader_handle_getrdp_cmd(bl_rx_buffer);
+				break;
+			case BL_GO_TO_ADDR:
+				bootloader_handle_go_cmd(bl_rx_buffer);
+				break;
+			case BL_FLASH_ERASE:
+				bootloader_handle_flash_erase_cmd(bl_rx_buffer);
+				break;
+			case BL_MEM_WRITE:
+				bootloader_handle_mem_write_cmd(bl_rx_buffer);
+				break;
+			case BL_ENDIS_RW_PROTECT:
+				bootloader_handle_endis_rw_protect(bl_rx_buffer);
+				break;
+			case BL_MEM_READ:
+				bootloader_handle_mem_read(bl_rx_buffer);
+				break;
+			case BL_READ_SECTOR_STATUS:
+				bootloader_handle_read_sector_status(bl_rx_buffer);
+				break;
+			case BL_OTP_READ:
+				bootloader_handle_read_otp(bl_rx_buffer);
+				break;
+			default:
+				printmsg("BL_DEBUG_MSG: Invalid command code received from host\r\n");
+				break;
+		}
+	}
 }
 
 void bootloader_jump_to_user_app(void)
@@ -360,6 +412,74 @@ void assert_failed(uint8_t* file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+/* Implementation of Boot-loader Command Handle functions */
+
+/* Helper function to handle BL_GET_VER command */
+void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_GET_HELP command */
+void bootloader_handle_gethelp_cmd(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_GET_CID command */
+void bootloader_handle_getcid_cmd(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_GET_RDP_STATUS command */
+void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_GO_TO_ADDR command */
+void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_FLASH_ERASE command */
+void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_MEM_WRITE command */
+void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_ENDIS_RW_PROTECT command */
+void bootloader_handle_endis_rw_protect(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_MEM_READ command */
+void bootloader_handle_mem_read(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_READ_SECTOR_STATUS command */
+void bootloader_handle_read_sector_status(uint8_t* bl_rx_buffer)
+{
+
+}
+
+/* Helper function to handle BL_OTP_READ command */
+void bootloader_handle_read_otp(uint8_t* bl_rx_buffer)
+{
+
+}
 
 /**
   * @}
