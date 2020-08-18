@@ -36,12 +36,16 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
+#include <stdarg.h>
+#include <string.h>
+
 /* USER CODE BEGIN Includes */
 #include "main.h"
 #include "stm32f3xx_hal.h"
 /* USER CODE END Includes */
 
 // Enable this line to get debug messages over debug UART
+#define BL_DEBUG_MSG_EN
 
 /* Private variables ---------------------------------------------------------*/
 CRC_HandleTypeDef hcrc;
@@ -63,10 +67,13 @@ static void MX_CRC_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+static void printmsg(char* format,...);
 
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+#define D_UART &huart1
+#define C_UART &huart2
 
 /* USER CODE END 0 */
 
@@ -104,9 +111,18 @@ int main(void)
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
-  while(1)
+  if(HAL_GPIO_ReadPin(B1_GPIO_Port,GPIO_PIN_13)==GPIO_PIN_RESET)
   {
-
+	  printmsg("BL_DEBUG_MSG: Button is pressed. Going to BL mode.\n\r");
+	  HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,GPIO_PIN_SET);
+	  bootloader_uart_read_data();
+  }
+  else
+  {
+	  /* Here I have a breakpoint */
+	  printmsg("BL_DEBUG_MSG: Button is not pressed. Executing user app\n\r");
+	  HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,GPIO_PIN_SET);
+	  bootloader_jump_to_user_app();
   }
 
   /* USER CODE END 2 */
@@ -264,6 +280,30 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void printmsg(char* format,...)
+{
+#ifdef BL_DEBUG_MSG_EN
+	char str[80];
+	/* Extract the argument list using VA apis */
+	va_list args;
+	va_start(args,format);
+	vsprintf(str,format,args);
+	HAL_UART_Transmit(D_UART,(uint8_t*)str,strlen(str),HAL_MAX_DELAY);
+	va_end(args);
+
+#endif
+}
+
+void bootloader_uart_read_data(void)
+{
+
+}
+
+void bootloader_jump_to_user_app(void)
+{
+
+}
 
 /* USER CODE END 4 */
 

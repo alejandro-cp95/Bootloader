@@ -86,6 +86,8 @@ void _Error_Handler(char *, int);
 
 /*Bootloader function prototypes*/
 
+void bootloader_uart_read_data(void);
+void bootloader_jump_to_user_app(void);
 
 #ifdef __cplusplus
 }
