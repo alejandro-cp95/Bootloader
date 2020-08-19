@@ -75,6 +75,12 @@
 
 /* USER CODE BEGIN Private defines */
 #define FLASH_PAGE16_BASE_ADDRESS 0x08008000U
+/* ACK and NACK bytes */
+#define BL_ACK 0xA5
+#define BL_NACK 0x7F
+/* CRC */
+#define VERIFY_CRC_SUCCESS 0
+#define VERIFY_CRC_FAIL 1
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
@@ -101,6 +107,15 @@ void bootloader_handle_mem_read(uint8_t* bl_rx_buffer);
 void bootloader_handle_read_sector_status(uint8_t* bl_rx_buffer);
 void bootloader_handle_read_otp(uint8_t* bl_rx_buffer);
 
+void bootloader_send_ack(uint8_t follow_len);
+void bootloader_send_nack(void);
+uint8_t bootloader_verify_crc(uint8_t* pData,uint32_t len, uint32_t crc_host);
+void bootloader_uart_write_data(uint8_t* pBuffer, uint32_t len);
+uint8_t get_bootloader_version(void);
+
+
+/* Bootloader version 1.0 */
+#define BL_VERSION 0x10
 /* Our bootloader commands */
 
 /* This command is used to read the bootloader version from the MCU */

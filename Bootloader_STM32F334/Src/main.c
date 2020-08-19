@@ -198,7 +198,7 @@ static void MX_CRC_Init(void)
   hcrc.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_ENABLE;
   hcrc.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_NONE;
   hcrc.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_DISABLE;
-  hcrc.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
+  hcrc.InputDataFormat = CRC_INPUTDATA_FORMAT_WORDS;
   if (HAL_CRC_Init(&hcrc) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -231,7 +231,7 @@ static void MX_USART2_UART_Init(void)
 {
 
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
   huart2.Init.Mode = UART_MODE_TX_RX;
@@ -418,7 +418,31 @@ void assert_failed(uint8_t* file, uint32_t line)
 /* Helper function to handle BL_GET_VER command */
 void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer)
 {
+	uint8_t bl_version;
+	// 1) Verify the checksum
+	printmsg("BL_DEBUG_MSG: bootloader_handle_getver_cmd\n\r");
 
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
+
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
+
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(1);
+		bl_version=get_bootloader_version();
+		printmsg("BL_DEBUG_MSG: BL_VER: %d %#x\n",bl_version,bl_version);
+		bootloader_uart_write_data(&bl_version,1);
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
 }
 
 /* Helper function to handle BL_GET_HELP command */
@@ -479,6 +503,53 @@ void bootloader_handle_read_sector_status(uint8_t* bl_rx_buffer)
 void bootloader_handle_read_otp(uint8_t* bl_rx_buffer)
 {
 
+}
+
+/* This function sends ACK if CRC matches along with "length to follow" */
+void bootloader_send_ack(uint8_t follow_len)
+{
+	// Here we send 2 bytes. The first one is ACK, and the second one is the length value
+	uint8_t ack_buf[2];
+	ack_buf[0]=BL_ACK;
+	ack_buf[1]=follow_len;
+	HAL_UART_Transmit(C_UART,ack_buf,2,HAL_MAX_DELAY);
+}
+
+void bootloader_send_nack(void)
+{
+	uint8_t nack=BL_NACK;
+	HAL_UART_Transmit(C_UART,&nack,1,HAL_MAX_DELAY);
+}
+
+/* This verifies the CRC of the given buffer in pData */
+uint8_t bootloader_verify_crc(uint8_t* pData,uint32_t len, uint32_t crc_host)
+{
+	uint32_t uwCRCValue=0xFF;
+	/* Reset CRC Calculation Unit */
+	__HAL_CRC_DR_RESET(&hcrc);
+	for(uint32_t i=0; i<len; i++)
+	{
+		uint32_t i_data=pData[i];
+		uwCRCValue=HAL_CRC_Accumulate(&hcrc,&i_data,1);
+	}
+	if(uwCRCValue==crc_host)
+	{
+		return VERIFY_CRC_SUCCESS;
+	}
+	return VERIFY_CRC_FAIL;
+}
+
+/* This function writes data in to C_UART */
+void bootloader_uart_write_data(uint8_t* pBuffer, uint32_t len)
+{
+	/* You can replace the below ST's USART driver API call with your MCU's driver API call */
+	HAL_UART_Transmit(C_UART,pBuffer,len,HAL_MAX_DELAY);
+}
+
+/* Just returns the macro value */
+uint8_t get_bootloader_version(void)
+{
+	return (uint8_t)BL_VERSION;
 }
 
 /**
