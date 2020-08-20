@@ -378,12 +378,12 @@ void bootloader_jump_to_user_app(void)
 
 	/* 2. Now fetch the reset handler address of the user application
 	 * from the location FLASH_PAGE16_BASE_ADDRESS+4 */
-	uint32_t resethandler_address = *(volatile uint32_t*) (FLASH_PAGE16_BASE_ADDRESS+4);
+	uint32_t resethandler_address = *(uint32_t*) (FLASH_PAGE16_BASE_ADDRESS+4);
 	app_reset_handler=(void*)resethandler_address;
 	printmsg("BL_DEBUG_MSG: app reset handler addr: %#x\n\r",app_reset_handler);
 
 	// This function comes from CMSIS
-	__set_MSP(msp_value);
+	//__set_MSP(msp_value);
 
 	//SCB -> VTOR = FLASH_PAGE16_BASE_ADDRESS;
 
@@ -542,9 +542,63 @@ void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer)
 	}
 }
 
+/* Goes to the direction we specify */
 void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer)
 {
+	uint32_t go_address=0;
+	uint8_t addr_valid=ADDR_VALID;
+	uint8_t addr_invalid=ADDR_INVALID;
 
+	printmsg("BL_DEBUG_MSG: bootloader_handle_go_cmd\n\r");
+
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
+
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
+
+	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(1);
+		/* Extract the go address */
+		go_address = *((uint32_t*)&bl_rx_buffer[2]);
+		printmsg("BL_DEBUG_MSG: GO addr: %#x!\r\n",go_address);
+		if(verify_address(go_address)==ADDR_VALID)
+		{
+			/* Tell the host that address is fine */
+			bootloader_uart_write_data(&addr_valid,1);
+
+			/* Jump to "go" address.
+			 * we don't care what is being done ther.
+			 * Host must ensure that valid code is present over there.
+			 * It's not th
+			 * e duty of bootloader. So just trust and jump */
+
+			/* Not doing the below line will result in hardfault exception for ARM Cortex M */
+
+			/* Since the Cortex-M processors don't support the ARM instruction set,
+			 * but only Thumb instruction set the T bit must always be 1, which
+			 * is linked to the 0th bit of the PC */
+			go_address+=1; /* Make T bit = 1 */
+			void(*lets_jump)(void)=(void*)go_address;
+			printmsg("BL_DEBUG_MSG: Jumping to go address!\r\n");
+			lets_jump();
+		}
+		else
+		{
+            printmsg("BL_DEBUG_MSG:GO addr invalid ! \n");
+            //tell host that address is invalid
+            bootloader_uart_write_data(&addr_invalid,1);
+		}
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
 }
 
 void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer)
@@ -650,6 +704,35 @@ uint8_t get_flash_rdp_level(void)
 	rdp_status=(uint8_t)(*pOB_addr);
 #endif
 	return rdp_status;
+}
+
+/* Verify the address sent by the host */
+uint8_t verify_address(uint32_t go_address)
+{
+	/* What are the valid addresses to which we can jump?
+	 * Can we jump to system memory? Yes
+	 * Can we jump to SRAM1 memory? Yes
+	 * Can we jump to Backup registers? Yes
+	 * Can we jump to peripheral memory? It's possible, but not allowed, so no
+	 * Can we jump to external memory? Yes */
+
+	/* Incomplete -poorly written.. optimize it */
+	if(go_address>= SRAM_BASE&&go_address<=SRAM_END)
+	{
+		return ADDR_VALID;
+	}
+	else if(go_address>= FLASH_BASE&&go_address<=FLASH_END)
+	{
+		return ADDR_VALID;
+	}
+	else if(go_address>= SYSTEM_MEMORY_BASE&&go_address<=SYSTEM_MEMORY_END)
+	{
+		return ADDR_VALID;
+	}
+	else
+	{
+		return ADDR_INVALID;
+	}
 }
 
 /**

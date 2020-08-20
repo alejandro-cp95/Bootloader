@@ -81,6 +81,17 @@
 /* CRC */
 #define VERIFY_CRC_SUCCESS 0
 #define VERIFY_CRC_FAIL 1
+/* Addresses */
+#define ADDR_VALID 0x00
+#define ADDR_INVALID 0x01
+/* Some Start and End addresses of different memories of STM32F334 */
+#define SRAM_SIZE			12*1024
+#define SRAM_END			(SRAM_BASE+SRAM_SIZE)
+#define FLASH_SIZE			64*1024
+#define FLASH_END			(FLASH_BASE+FLASH_SIZE)
+#define SYSTEM_MEMORY_BASE	((uint32_t)0x1FFFD800U)
+#define SYSTEM_MEMORY_SIZE	8*1024
+#define SYSTEM_MEMORY_END	(SYSTEM_MEMORY_BASE+SYSTEM_MEMORY_SIZE)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
@@ -125,6 +136,7 @@ void bootloader_uart_write_data(uint8_t* pBuffer, uint32_t len);
 uint8_t get_bootloader_version(void);
 uint16_t get_mcu_chip_id(void);
 uint8_t get_flash_rdp_level(void);
+uint8_t verify_address(uint32_t go_address);
 
 
 /* Bootloader version 1.0 */
