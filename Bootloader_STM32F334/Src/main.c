@@ -56,7 +56,20 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+uint8_t supported_commands[]=
+{
+		BL_GET_VER,
+		BL_GET_HELP,
+		BL_GET_CID,
+		BL_GET_RDP_STATUS,
+		BL_GO_TO_ADDR,
+		BL_FLASH_ERASE,
+		BL_MEM_WRITE,
+		BL_ENDIS_RW_PROTECT,
+		BL_MEM_READ,
+		BL_READ_SECTOR_STATUS,
+		BL_OTP_READ
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -446,9 +459,30 @@ void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer)
 }
 
 /* Helper function to handle BL_GET_HELP command */
+/* Bootloader sends out all supported command codes */
 void bootloader_handle_gethelp_cmd(uint8_t* bl_rx_buffer)
 {
+	printmsg("BL_DEBUG_MSG: bootloader_handle_gethelp_cmd\n\r");
 
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
+
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
+
+	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(sizeof(supported_commands));
+		bootloader_uart_write_data(supported_commands,sizeof(supported_commands));
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
 }
 
 /* Helper function to handle BL_GET_CID command */
