@@ -428,7 +428,7 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 /* Implementation of Boot-loader Command Handle functions */
 
-/* Helper function to handle BL_GET_VER command */
+/* It shows the version of the bootloader */
 void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer)
 {
 	uint8_t bl_version;
@@ -458,7 +458,6 @@ void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer)
 	}
 }
 
-/* Helper function to handle BL_GET_HELP command */
 /* Bootloader sends out all supported command codes */
 void bootloader_handle_gethelp_cmd(uint8_t* bl_rx_buffer)
 {
@@ -485,55 +484,70 @@ void bootloader_handle_gethelp_cmd(uint8_t* bl_rx_buffer)
 	}
 }
 
-/* Helper function to handle BL_GET_CID command */
+/* Gets the chip identification number */
 void bootloader_handle_getcid_cmd(uint8_t* bl_rx_buffer)
 {
+	uint16_t bl_cid_number=0;
+	printmsg("BL_DEBUG_MSG: bootloader_handle_getcid_cmd\n\r");
 
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
+
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
+
+	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(2);
+		bl_cid_number=get_mcu_chip_id();
+		printmsg("BL_DEBUG_MSG: MCU id: %d %#x!\r\n",bl_cid_number,bl_cid_number);
+		bootloader_uart_write_data((uint8_t*)&bl_cid_number,2);
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
 }
 
-/* Helper function to handle BL_GET_RDP_STATUS command */
 void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer)
 {
 
 }
 
-/* Helper function to handle BL_GO_TO_ADDR command */
 void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer)
 {
 
 }
 
-/* Helper function to handle BL_FLASH_ERASE command */
 void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer)
 {
 
 }
 
-/* Helper function to handle BL_MEM_WRITE command */
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
 {
 
 }
 
-/* Helper function to handle BL_ENDIS_RW_PROTECT command */
 void bootloader_handle_endis_rw_protect(uint8_t* bl_rx_buffer)
 {
 
 }
 
-/* Helper function to handle BL_MEM_READ command */
 void bootloader_handle_mem_read(uint8_t* bl_rx_buffer)
 {
 
 }
 
-/* Helper function to handle BL_READ_SECTOR_STATUS command */
 void bootloader_handle_read_sector_status(uint8_t* bl_rx_buffer)
 {
 
 }
 
-/* Helper function to handle BL_OTP_READ command */
 void bootloader_handle_read_otp(uint8_t* bl_rx_buffer)
 {
 
@@ -584,6 +598,19 @@ void bootloader_uart_write_data(uint8_t* pBuffer, uint32_t len)
 uint8_t get_bootloader_version(void)
 {
 	return (uint8_t)BL_VERSION;
+}
+
+/* Read the chip identifier or device identifier */
+uint16_t get_mcu_chip_id(void)
+{
+	/* The STM32F334XX MCUs integrate an MCU ID code. This ID identifies the ST MCU part number
+	 * and the die revision. It is part of the DBG_MCU component and is mapped on the
+	 * external PPB bus (see Section 31.15 on page 1111). This code is accessible using the
+	 * JTAG debug port (4 to 5 pins) or the SW debug port (two pins) or by the user software
+	 * It is even accessible while the MCU is under system reset. */
+	uint16_t cid;
+	cid=(uint16_t)(DBGMCU->IDCODE)&0x0FFF;
+	return cid;
 }
 
 /**

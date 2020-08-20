@@ -95,16 +95,27 @@ void _Error_Handler(char *, int);
 void bootloader_uart_read_data(void);
 void bootloader_jump_to_user_app(void);
 
+/* Helper function to handle BL_GET_VER command */
 void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_GET_HELP command */
 void bootloader_handle_gethelp_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_GET_CID command */
 void bootloader_handle_getcid_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_GET_RDP_STATUS command */
 void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_GO_TO_ADDR command */
 void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_FLASH_ERASE command */
 void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_MEM_WRITE command */
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_ENDIS_RW_PROTECT command */
 void bootloader_handle_endis_rw_protect(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_MEM_READ command */
 void bootloader_handle_mem_read(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_READ_SECTOR_STATUS command */
 void bootloader_handle_read_sector_status(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_OTP_READ command */
 void bootloader_handle_read_otp(uint8_t* bl_rx_buffer);
 
 void bootloader_send_ack(uint8_t follow_len);
@@ -112,6 +123,7 @@ void bootloader_send_nack(void);
 uint8_t bootloader_verify_crc(uint8_t* pData,uint32_t len, uint32_t crc_host);
 void bootloader_uart_write_data(uint8_t* pBuffer, uint32_t len);
 uint8_t get_bootloader_version(void);
+uint16_t get_mcu_chip_id(void);
 
 
 /* Bootloader version 1.0 */
