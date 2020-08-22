@@ -92,6 +92,8 @@
 #define SYSTEM_MEMORY_BASE	((uint32_t)0x1FFFD800U)
 #define SYSTEM_MEMORY_SIZE	8*1024
 #define SYSTEM_MEMORY_END	(SYSTEM_MEMORY_BASE+SYSTEM_MEMORY_SIZE)
+#define INVALID_PAGE 0x04
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
@@ -137,6 +139,7 @@ uint8_t get_bootloader_version(void);
 uint16_t get_mcu_chip_id(void);
 uint8_t get_flash_rdp_level(void);
 uint8_t verify_address(uint32_t go_address);
+uint8_t execute_flash_erase(uint8_t page_number, uint8_t number_of_pages);
 
 
 /* Bootloader version 1.0 */

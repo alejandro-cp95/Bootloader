@@ -387,6 +387,7 @@ void bootloader_jump_to_user_app(void)
 
 	//SCB -> VTOR = FLASH_PAGE16_BASE_ADDRESS;
 
+	HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,0);
 	// 3. Jump to reset handler of the user application
 	app_reset_handler();
 }
@@ -443,7 +444,7 @@ void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer)
 
 	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
-		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
 		// Checksum is correct
 		bootloader_send_ack(1);
 		bl_version=get_bootloader_version();
@@ -452,7 +453,7 @@ void bootloader_handle_getver_cmd(uint8_t* bl_rx_buffer)
 	}
 	else
 	{
-		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum fail!\n\r");
 		// Checksum is wrong. Send nack
 		bootloader_send_nack();
 	}
@@ -471,14 +472,14 @@ void bootloader_handle_gethelp_cmd(uint8_t* bl_rx_buffer)
 
 	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
 	{
-		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
 		// Checksum is correct
 		bootloader_send_ack(sizeof(supported_commands));
 		bootloader_uart_write_data(supported_commands,sizeof(supported_commands));
 	}
 	else
 	{
-		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum fail!\n\r");
 		// Checksum is wrong. Send nack
 		bootloader_send_nack();
 	}
@@ -498,7 +499,7 @@ void bootloader_handle_getcid_cmd(uint8_t* bl_rx_buffer)
 
 	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
 	{
-		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
 		// Checksum is correct
 		bootloader_send_ack(2);
 		bl_cid_number=get_mcu_chip_id();
@@ -507,7 +508,7 @@ void bootloader_handle_getcid_cmd(uint8_t* bl_rx_buffer)
 	}
 	else
 	{
-		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum fail!\n\r");
 		// Checksum is wrong. Send nack
 		bootloader_send_nack();
 	}
@@ -527,7 +528,7 @@ void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer)
 
 	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
 	{
-		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
 		// Checksum is correct
 		bootloader_send_ack(1);
 		rdp_level=get_flash_rdp_level();
@@ -536,7 +537,7 @@ void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer)
 	}
 	else
 	{
-		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum fail!\n\r");
 		// Checksum is wrong. Send nack
 		bootloader_send_nack();
 	}
@@ -559,7 +560,7 @@ void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer)
 
 	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
 	{
-		printmsg("BL_DEBUG_MSG: checksum success!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
 		// Checksum is correct
 		bootloader_send_ack(1);
 		/* Extract the go address */
@@ -588,22 +589,51 @@ void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer)
 		}
 		else
 		{
-            printmsg("BL_DEBUG_MSG:GO addr invalid ! \n");
+            printmsg("BL_DEBUG_MSG: GO addr invalid ! \n");
             //tell host that address is invalid
             bootloader_uart_write_data(&addr_invalid,1);
 		}
 	}
 	else
 	{
-		printmsg("BL_DEBUG_MSG: checksum fail!\n\r");
+		printmsg("BL_DEBUG_MSG: Checksum fail!\n\r");
 		// Checksum is wrong. Send nack
 		bootloader_send_nack();
 	}
 }
 
+/* Erases a specified portion of the Flash memory */
 void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer)
 {
+	uint8_t erase_status=0x00;
+	printmsg("BL_DEBUG_MSG: bootloader_handle_flash_erase_cmd\n\r");
 
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
+
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
+
+	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(1);
+		printmsg("BL_DEBUG_MSG: Initial sector: %d no_of_sectors: %d\n\r",bl_rx_buffer[2],bl_rx_buffer[3]);
+
+		HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,0);
+		erase_status = execute_flash_erase(bl_rx_buffer[2],bl_rx_buffer[3]);
+		HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,1);
+
+		bootloader_uart_write_data(&erase_status,1);
+		printmsg("BL_DEBUG_MSG: Flash erase status: %#x\r\n",erase_status);
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: Checksum fail!\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
 }
 
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
@@ -733,6 +763,47 @@ uint8_t verify_address(uint32_t go_address)
 	{
 		return ADDR_INVALID;
 	}
+}
+
+uint8_t execute_flash_erase(uint8_t page_number, uint8_t number_of_pages)
+{
+	/* We have totally 32 pages (0 to 31) in STM32F334 MCU
+	 * number_of_pages has to be in the range of 0 to 31
+	 * If page_number=0xFF, that means mass erase!
+	 * Code needs to be modified if your MCU supports more flash pages/sectors */
+	FLASH_EraseInitTypeDef flashErase_handle;
+	uint32_t pageError;
+	HAL_StatusTypeDef status;
+
+	if(number_of_pages>32)
+	{
+		return INVALID_PAGE;
+	}
+	if((page_number==0xFF)||(page_number<=31))
+	{
+		if(page_number==(uint8_t)0xFF)
+		{
+			flashErase_handle.TypeErase=FLASH_TYPEERASE_MASSERASE;
+		}
+		else
+		{
+			/* Here we are just calculating how many pages need to be erased */
+			uint8_t remaining_pages = 32-page_number;
+			if(number_of_pages>remaining_pages)
+			{
+				number_of_pages=remaining_pages;
+			}
+			flashErase_handle.TypeErase=FLASH_TYPEERASE_PAGES;
+			flashErase_handle.PageAddress=(FLASH_BASE+2*1024*page_number);
+			flashErase_handle.NbPages=number_of_pages;
+		}
+		/* Get access to touch the flash registers */
+		HAL_FLASH_Unlock();
+		status=(uint8_t)HAL_FLASHEx_Erase(&flashErase_handle,&pageError);
+		HAL_FLASH_Lock();
+		return status;
+	}
+	return INVALID_PAGE;
 }
 
 /**
