@@ -636,9 +636,55 @@ void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer)
 	}
 }
 
+/* Writes a specified portion of the Flash memory */
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
 {
+	uint8_t addr_valid=ADDR_VALID;
+	uint8_t write_status=0x00;
+	uint8_t chksum=0, len=bl_rx_buffer[0];
+	uint8_t payload_len=bl_rx_buffer[6];
 
+	uint32_t mem_address=*((uint32_t*)(&bl_rx_buffer[2]));
+
+	chksum=bl_rx_buffer[len];
+
+	printmsg("BL_DEBUG_MSG: bootloader_handle_mem_write_cmd\n\r");
+
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
+
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
+
+	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(1);
+		printmsg("BL_DEBUG_MSG: Mem write address: %#x\n\r",mem_address);
+		if(verify_address(mem_address)==ADDR_VALID)
+		{
+			printmsg("BL_DEBUG_MSG: Valid mem write address\n\r");
+
+			HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,0);
+			write_status = execute_mem_write((uint16_t*)&bl_rx_buffer[7],mem_address,payload_len);
+			HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,1);
+			bootloader_uart_write_data(&write_status,1);
+		}
+		else
+		{
+			printmsg("BL_DEBUG_MSG: Invalid mem write address\n\r");
+			write_status=ADDR_INVALID;
+			/* Inform host that address is invalid */
+			bootloader_uart_write_data(&write_status,1);
+		}
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: Invalid mem write address\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
 }
 
 void bootloader_handle_endis_rw_protect(uint8_t* bl_rx_buffer)
@@ -804,6 +850,23 @@ uint8_t execute_flash_erase(uint8_t page_number, uint8_t number_of_pages)
 		return status;
 	}
 	return INVALID_PAGE;
+}
+
+/* This function writes the contents of pBuffer to "mem_address" byte by byte */
+/* Note1: Currently this function supports writeing to Flash only */
+/* Note2_ This functions don't check whether "mem_address" is a valid address of the Flash range */
+uint8_t execute_mem_write(uint16_t* pBuffer, uint32_t mem_address, uint8_t len)
+{
+	uint8_t status=HAL_OK;
+	/* We have to unlock flash module to get control of registers */
+	HAL_FLASH_Unlock();
+	for(uint8_t i=0;i<len;i+=2)
+	{
+		/* Here we program the flash byte by byte */
+		status=HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,mem_address+i,pBuffer[i/2]);
+	}
+	HAL_FLASH_Lock();
+	return status;
 }
 
 /**
