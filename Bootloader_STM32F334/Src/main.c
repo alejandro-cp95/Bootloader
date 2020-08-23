@@ -65,10 +65,11 @@ uint8_t supported_commands[]=
 		BL_GO_TO_ADDR,
 		BL_FLASH_ERASE,
 		BL_MEM_WRITE,
-		BL_ENDIS_RW_PROTECT,
+		BL_EN_R_W_PROTECT,
 		BL_MEM_READ,
-		BL_READ_SECTOR_STATUS,
-		BL_OTP_READ
+		BL_READ_SECTOR_PROT_STATUS,
+		BL_OTP_READ,
+		BL_DIS_R_W_PROTECT
 };
 /* USER CODE END PV */
 
@@ -137,7 +138,6 @@ int main(void)
   {
 	  /* Here I have a breakpoint */
 	  printmsg("BL_DEBUG_MSG: Button is not pressed. Executing user app\n\r");
-	  HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,GPIO_PIN_SET);
 	  bootloader_jump_to_user_app();
   }
 
@@ -346,17 +346,20 @@ void bootloader_uart_read_data(void)
 			case BL_MEM_WRITE:
 				bootloader_handle_mem_write_cmd(bl_rx_buffer);
 				break;
-			case BL_ENDIS_RW_PROTECT:
-				bootloader_handle_endis_rw_protect(bl_rx_buffer);
+			case BL_EN_R_W_PROTECT:
+				bootloader_handle_en_r_w_protect(bl_rx_buffer);
 				break;
 			case BL_MEM_READ:
 				bootloader_handle_mem_read(bl_rx_buffer);
 				break;
-			case BL_READ_SECTOR_STATUS:
-				bootloader_handle_read_sector_status(bl_rx_buffer);
+			case BL_READ_SECTOR_PROT_STATUS:
+				bootloader_handle_read_sector_prot_status(bl_rx_buffer);
 				break;
 			case BL_OTP_READ:
 				bootloader_handle_read_otp(bl_rx_buffer);
+				break;
+			case BL_DIS_R_W_PROTECT:
+				bootloader_handle_dis_r_w_protect(bl_rx_buffer);
 				break;
 			default:
 				printmsg("BL_DEBUG_MSG: Invalid command code received from host\r\n");
@@ -585,6 +588,7 @@ void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer)
 			go_address+=1; /* Make T bit = 1 */
 			void(*lets_jump)(void)=(void*)go_address;
 			printmsg("BL_DEBUG_MSG: Jumping to go address!\r\n");
+			HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,0);
 			lets_jump();
 		}
 		else
@@ -639,14 +643,10 @@ void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer)
 /* Writes a specified portion of the Flash memory */
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
 {
-	uint8_t addr_valid=ADDR_VALID;
 	uint8_t write_status=0x00;
-	uint8_t chksum=0, len=bl_rx_buffer[0];
 	uint8_t payload_len=bl_rx_buffer[6];
 
 	uint32_t mem_address=*((uint32_t*)(&bl_rx_buffer[2]));
-
-	chksum=bl_rx_buffer[len];
 
 	printmsg("BL_DEBUG_MSG: bootloader_handle_mem_write_cmd\n\r");
 
@@ -665,7 +665,6 @@ void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
 		if(verify_address(mem_address)==ADDR_VALID)
 		{
 			printmsg("BL_DEBUG_MSG: Valid mem write address\n\r");
-
 			HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,0);
 			write_status = execute_mem_write((uint16_t*)&bl_rx_buffer[7],mem_address,payload_len);
 			HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,1);
@@ -687,7 +686,7 @@ void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
 	}
 }
 
-void bootloader_handle_endis_rw_protect(uint8_t* bl_rx_buffer)
+void bootloader_handle_en_r_w_protect(uint8_t* bl_rx_buffer)
 {
 
 }
@@ -697,12 +696,17 @@ void bootloader_handle_mem_read(uint8_t* bl_rx_buffer)
 
 }
 
-void bootloader_handle_read_sector_status(uint8_t* bl_rx_buffer)
+void bootloader_handle_read_sector_prot_status(uint8_t* bl_rx_buffer)
 {
 
 }
 
 void bootloader_handle_read_otp(uint8_t* bl_rx_buffer)
+{
+
+}
+
+void bootloader_handle_dis_r_w_protect(uint8_t* bl_rx_buffer)
 {
 
 }

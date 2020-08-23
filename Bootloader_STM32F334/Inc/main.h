@@ -122,14 +122,16 @@ void bootloader_handle_go_cmd(uint8_t* bl_rx_buffer);
 void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_MEM_WRITE command */
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer);
-/* Helper function to handle BL_ENDIS_RW_PROTECT command */
-void bootloader_handle_endis_rw_protect(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_EN_R_W_PROTECT command */
+void bootloader_handle_en_r_w_protect(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_MEM_READ command */
 void bootloader_handle_mem_read(uint8_t* bl_rx_buffer);
-/* Helper function to handle BL_READ_SECTOR_STATUS command */
-void bootloader_handle_read_sector_status(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_READ_SECTOR_PROT_STATUS command */
+void bootloader_handle_read_sector_prot_status(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_OTP_READ command */
 void bootloader_handle_read_otp(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_DIS_R_W_PROTECT command */
+void bootloader_handle_dis_r_w_protect(uint8_t* bl_rx_buffer);
 
 void bootloader_send_ack(uint8_t follow_len);
 void bootloader_send_nack(void);
@@ -148,27 +150,29 @@ uint8_t execute_mem_write(uint16_t* pBuffer, uint32_t mem_address, uint8_t len);
 /* Our bootloader commands */
 
 /* This command is used to read the bootloader version from the MCU */
-#define BL_GET_VER 0x51
+#define BL_GET_VER					0x51
 /* This command is used to know what are the commands supported by the bootloader */
-#define BL_GET_HELP 0x52
+#define BL_GET_HELP					0x52
 /* This is used to read the MCU chip identification number */
-#define BL_GET_CID 0x53
+#define BL_GET_CID					0x53
 /* This command is used to read the FLASH Read Protection level */
-#define BL_GET_RDP_STATUS 0x54
+#define BL_GET_RDP_STATUS			0x54
 /* This command is used to jump bootloader to specified address */
-#define BL_GO_TO_ADDR 0x55
+#define BL_GO_TO_ADDR				0x55
 /* This command is used to mass erase or sector erase of the user flash */
-#define BL_FLASH_ERASE 0x56
+#define BL_FLASH_ERASE				0x56
 /* This command is used to write data in to different memories of the MCU */
-#define BL_MEM_WRITE 0x57
+#define BL_MEM_WRITE				0x57
 /* This command is used to enable or disable read/write protect on different sectors of the  */
-#define BL_ENDIS_RW_PROTECT 0x58
+#define BL_EN_R_W_PROTECT			0x58
 /* This command is used to read data from different memories of the microcontroller */
-#define BL_MEM_READ 0x59
+#define BL_MEM_READ					0x59
 /* This command is used to read all the sector protection status */
-#define BL_READ_SECTOR_STATUS 0x5A
+#define BL_READ_SECTOR_PROT_STATUS	0x5A
 /* This command is used to read the OTP contents */
-#define BL_OTP_READ 0x5B
+#define BL_OTP_READ					0x5B
+/* This command is used to disable all sector read/write protections */
+#define BL_DIS_R_W_PROTECT			0x5C
 
 #ifdef __cplusplus
 }
