@@ -67,7 +67,7 @@ uint8_t supported_commands[]=
 		BL_MEM_WRITE,
 		BL_EN_R_W_PROTECT,
 		BL_MEM_READ,
-		BL_READ_SECTOR_PROT_STATUS,
+		BL_READ_PAGE_PROT_STATUS,
 		BL_OTP_READ,
 		BL_DIS_R_W_PROTECT
 };
@@ -352,8 +352,8 @@ void bootloader_uart_read_data(void)
 			case BL_MEM_READ:
 				bootloader_handle_mem_read(bl_rx_buffer);
 				break;
-			case BL_READ_SECTOR_PROT_STATUS:
-				bootloader_handle_read_sector_prot_status(bl_rx_buffer);
+			case BL_READ_PAGE_PROT_STATUS:
+				bootloader_handle_read_page_prot_status(bl_rx_buffer);
 				break;
 			case BL_OTP_READ:
 				bootloader_handle_read_otp(bl_rx_buffer);
@@ -375,7 +375,7 @@ void bootloader_jump_to_user_app(void)
 
 	printmsg("BL_DEBUG_MSG: bootloader_jump_to_user_app\n\r");
 
-	// 1. Configure the MSP by reading the value from the base address of the sector 2
+	// 1. Configure the MSP by reading the value from the base address of the page 2
 	uint32_t msp_value = *(volatile uint32_t*) FLASH_PAGE16_BASE_ADDRESS;
 	printmsg("BL_DEBUG_MSG: MSP value: %#x\n\r", msp_value);
 
@@ -623,7 +623,7 @@ void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer)
 		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
 		// Checksum is correct
 		bootloader_send_ack(1);
-		printmsg("BL_DEBUG_MSG: Initial sector: %d no_of_sectors: %d\n\r",bl_rx_buffer[2],bl_rx_buffer[3]);
+		printmsg("BL_DEBUG_MSG: Initial page: %d no_of_pages: %d\n\r",bl_rx_buffer[2],bl_rx_buffer[3]);
 
 		HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,0);
 		erase_status = execute_flash_erase(bl_rx_buffer[2],bl_rx_buffer[3]);
@@ -696,7 +696,7 @@ void bootloader_handle_mem_read(uint8_t* bl_rx_buffer)
 
 }
 
-void bootloader_handle_read_sector_prot_status(uint8_t* bl_rx_buffer)
+void bootloader_handle_read_page_prot_status(uint8_t* bl_rx_buffer)
 {
 
 }

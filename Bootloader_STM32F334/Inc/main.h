@@ -126,8 +126,8 @@ void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer);
 void bootloader_handle_en_r_w_protect(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_MEM_READ command */
 void bootloader_handle_mem_read(uint8_t* bl_rx_buffer);
-/* Helper function to handle BL_READ_SECTOR_PROT_STATUS command */
-void bootloader_handle_read_sector_prot_status(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_READ_PAGE_PROT_STATUS command */
+void bootloader_handle_read_page_prot_status(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_OTP_READ command */
 void bootloader_handle_read_otp(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_DIS_R_W_PROTECT command */
@@ -159,19 +159,19 @@ uint8_t execute_mem_write(uint16_t* pBuffer, uint32_t mem_address, uint8_t len);
 #define BL_GET_RDP_STATUS			0x54
 /* This command is used to jump bootloader to specified address */
 #define BL_GO_TO_ADDR				0x55
-/* This command is used to mass erase or sector erase of the user flash */
+/* This command is used to mass erase or page erase of the user flash */
 #define BL_FLASH_ERASE				0x56
 /* This command is used to write data in to different memories of the MCU */
 #define BL_MEM_WRITE				0x57
-/* This command is used to enable or disable read/write protect on different sectors of the  */
+/* This command is used to enable or disable read/write protect on different pages of the user flash */
 #define BL_EN_R_W_PROTECT			0x58
 /* This command is used to read data from different memories of the microcontroller */
 #define BL_MEM_READ					0x59
-/* This command is used to read all the sector protection status */
-#define BL_READ_SECTOR_PROT_STATUS	0x5A
+/* This command is used to read all the page protection status */
+#define BL_READ_PAGE_PROT_STATUS	0x5A
 /* This command is used to read the OTP contents */
 #define BL_OTP_READ					0x5B
-/* This command is used to disable all sector read/write protections */
+/* This command is used to disable all page read/write protections */
 #define BL_DIS_R_W_PROTECT			0x5C
 
 #ifdef __cplusplus

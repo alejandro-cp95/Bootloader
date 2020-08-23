@@ -13,35 +13,35 @@ Flash_HAL_INV_ADDR                                  = 0x04
 #BL Commands
 COMMAND_BL_GET_VER                                  = 0x51
 COMMAND_BL_GET_HELP                                 = 0x52
-COMMAND_BL_GET_CID                                  =0x53
-COMMAND_BL_GET_RDP_STATUS                           =0x54
-COMMAND_BL_GO_TO_ADDR                               =0x55
-COMMAND_BL_FLASH_ERASE                              =0x56
-COMMAND_BL_MEM_WRITE                                =0x57
-COMMAND_BL_EN_R_W_PROTECT                           =0x58
-COMMAND_BL_MEM_READ                                 =0x59
-COMMAND_BL_READ_SECTOR_P_STATUS                     =0x5A
-COMMAND_BL_OTP_READ                                 =0x5B
-COMMAND_BL_DIS_R_W_PROTECT                          =0x5C
-COMMAND_BL_MY_NEW_COMMAND                           =0x5D
+COMMAND_BL_GET_CID                                  = 0x53
+COMMAND_BL_GET_RDP_STATUS                           = 0x54
+COMMAND_BL_GO_TO_ADDR                               = 0x55
+COMMAND_BL_FLASH_ERASE                              = 0x56
+COMMAND_BL_MEM_WRITE                                = 0x57
+COMMAND_BL_EN_R_W_PROTECT                           = 0x58
+COMMAND_BL_MEM_READ                                 = 0x59
+COMMAND_BL_READ_PAGE_PROTECT_STATUS                 = 0x5A
+COMMAND_BL_OTP_READ                                 = 0x5B
+COMMAND_BL_DIS_R_W_PROTECT                          = 0x5C
+COMMAND_BL_MY_NEW_COMMAND                           = 0x5D
 
 
 #len details of the command
-COMMAND_BL_GET_VER_LEN                              =6
-COMMAND_BL_GET_HELP_LEN                             =6
-COMMAND_BL_GET_CID_LEN                              =6
-COMMAND_BL_GET_RDP_STATUS_LEN                       =6
-COMMAND_BL_GO_TO_ADDR_LEN                           =10
-COMMAND_BL_FLASH_ERASE_LEN                          =8
+COMMAND_BL_GET_VER_LEN                              = 6
+COMMAND_BL_GET_HELP_LEN                             = 6
+COMMAND_BL_GET_CID_LEN                              = 6
+COMMAND_BL_GET_RDP_STATUS_LEN                       = 6
+COMMAND_BL_GO_TO_ADDR_LEN                           = 10
+COMMAND_BL_FLASH_ERASE_LEN                          = 8
 COMMAND_BL_MEM_WRITE_LEN                            = 11
-COMMAND_BL_EN_R_W_PROTECT_LEN                       =8
-COMMAND_BL_READ_SECTOR_P_STATUS_LEN                 =6
-COMMAND_BL_DIS_R_W_PROTECT_LEN                      =6
-COMMAND_BL_MY_NEW_COMMAND_LEN                       =8
+COMMAND_BL_EN_R_W_PROTECT_LEN                       = 8
+COMMAND_BL_READ_PAGE_PROTECT_STATUS_LEN             = 6
+COMMAND_BL_DIS_R_W_PROTECT_LEN                      = 6
+COMMAND_BL_MY_NEW_COMMAND_LEN                       = 8
 
 
 verbose_mode = 1
-mem_write_active =0
+mem_write_active = 0
 
 #----------------------------- file ops----------------------------------------
 
@@ -202,7 +202,7 @@ def process_COMMAND_BL_FLASH_ERASE(length):
         elif(erase_status[0] == Flash_HAL_TIMEOUT):
             print("\n   Erase Status: Fail  Code: FLASH_HAL_TIMEOUT")
         elif(erase_status[0] == Flash_HAL_INV_ADDR):
-            print("\n   Erase Status: Fail  Code: FLASH_HAL_INV_SECTOR")
+            print("\n   Erase Status: Fail  Code: FLASH_HAL_INV_PAGE")
         else:
             print("\n   Erase Status: Fail  Code: UNKNOWN_ERROR_CODE")
     else:
@@ -249,15 +249,15 @@ def protection_type(status,n):
         
         
         
-def process_COMMAND_BL_READ_SECTOR_STATUS(length):
+def process_COMMAND_BL_READ_PAGE_STATUS(length):
     s_status=0
 
     value = read_serial_port(length)
     s_status = bytearray(value)
-    #s_status.flash_sector_status = (uint16_t)(status[1] << 8 | status[0] )
-    print("\n   Sector Status : ",s_status[0])
+    #s_status.flash_page_status = (uint16_t)(status[1] << 8 | status[0] )
+    print("\n   Page Status : ",s_status[0])
     print("\n  ====================================")
-    print("\n  Sector                               \tProtection") 
+    print("\n  Page                               \tProtection") 
     print("\n  ====================================")
     if(s_status[0] & (1 << 15)):
         #PCROP is active
@@ -266,7 +266,7 @@ def process_COMMAND_BL_READ_SECTOR_STATUS(length):
         print("\n  Flash protection mode :   \tWrite Protection\n")
 
     for x in range(8):
-        print("\n   Sector{0}                               {1}".format(x,protection_type(s_status[0],x) ) )
+        print("\n   Page{0}                               {1}".format(x,protection_type(s_status[0],x) ) )
         
 
 
@@ -405,14 +405,13 @@ def decode_menu_command_code(command):
         print("\n   Command == > BL_FLASH_ERASE")
         data_buf[0] = COMMAND_BL_FLASH_ERASE_LEN-1 
         data_buf[1] = COMMAND_BL_FLASH_ERASE 
-        sector_num = input("\n   Enter sector number(0-7 or 0xFF) here :")
-        sector_num = int(sector_num, 16)
-        if(sector_num != 0xff):
-            nsec=int(input("\n   Enter number of sectors to erase(max 8) here :"))
+        page_num = int(input("\n   Enter page number here (0-31 or 255 for mass erase): "))
+        if(page_num != 0xff):
+            nsec=int(input("\n   Enter number of pages to erase here (max 32): "))
         else:
             nsec=0x00
         
-        data_buf[2]= sector_num 
+        data_buf[2]= page_num 
         data_buf[3]= nsec 
 
         crc32       = get_crc(data_buf,COMMAND_BL_FLASH_ERASE_LEN-4) 
@@ -504,17 +503,17 @@ def decode_menu_command_code(command):
     
     elif(command == 8):
         print("\n   Command == > BL_EN_R_W_PROTECT")
-        total_sector = int(input("\n   How many sectors do you want to protect ?: "))
-        sector_numbers = [0,0,0,0,0,0,0,0]
-        sector_details=0
-        for x in range(total_sector):
-            sector_numbers[x]=int(input("\n   Enter sector number[{0}]: ".format(x+1) ))
-            sector_details = sector_details | (1 << sector_numbers[x])
+        total_page = int(input("\n   How many pages do you want to protect ?: "))
+        page_numbers = [0,0,0,0,0,0,0,0]
+        page_details=0
+        for x in range(total_page):
+            page_numbers[x]=int(input("\n   Enter page number[{0}]: ".format(x+1) ))
+            page_details = page_details | (1 << page_numbers[x])
 
-        #print("Sector details",sector_details)
-        print("\n   Mode:Flash sectors Write Protection: 1")
-        print("\n   Mode:Flash sectors Read/Write Protection: 2")
-        mode=input("\n   Enter Sector Protection Mode(1 or 2 ):")
+        #print("Page details",page_details)
+        print("\n   Mode:Flash pages Write Protection: 1")
+        print("\n   Mode:Flash pages Read/Write Protection: 2")
+        mode=input("\n   Enter Page Protection Mode(1 or 2 ):")
         mode = int(mode)
         if(mode != 2 and mode != 1):
             printf("\n   Invalid option : Command Dropped")
@@ -525,7 +524,7 @@ def decode_menu_command_code(command):
 
         data_buf[0] = COMMAND_BL_EN_R_W_PROTECT_LEN-1 
         data_buf[1] = COMMAND_BL_EN_R_W_PROTECT 
-        data_buf[2] = sector_details 
+        data_buf[2] = page_details 
         data_buf[3] = mode 
         crc32       = get_crc(data_buf,COMMAND_BL_EN_R_W_PROTECT_LEN-4) 
         data_buf[4] = word_to_byte(crc32,1,1) 
@@ -545,11 +544,11 @@ def decode_menu_command_code(command):
         print("\n   Command == > COMMAND_BL_MEM_READ")
         print("\n   This command is not supported")
     elif(command == 10):
-        print("\n   Command == > COMMAND_BL_READ_SECTOR_P_STATUS")
-        data_buf[0] = COMMAND_BL_READ_SECTOR_P_STATUS_LEN-1 
-        data_buf[1] = COMMAND_BL_READ_SECTOR_P_STATUS 
+        print("\n   Command == > COMMAND_BL_READ_PAGE_PROTECT_STATUS")
+        data_buf[0] = COMMAND_BL_READ_PAGE_PROTECT_STATUS_LEN-1 
+        data_buf[1] = COMMAND_BL_READ_PAGE_PROTECT_STATUS 
 
-        crc32       = get_crc(data_buf,COMMAND_BL_READ_SECTOR_P_STATUS_LEN-4) 
+        crc32       = get_crc(data_buf,COMMAND_BL_READ_PAGE_PROTECT_STATUS_LEN-4) 
         data_buf[2] = word_to_byte(crc32,1,1) 
         data_buf[3] = word_to_byte(crc32,2,1) 
         data_buf[4] = word_to_byte(crc32,3,1) 
@@ -557,8 +556,8 @@ def decode_menu_command_code(command):
 
         Write_to_serial_port(data_buf[0],1)
         
-        for i in data_buf[1:COMMAND_BL_READ_SECTOR_P_STATUS_LEN]:
-            Write_to_serial_port(i,COMMAND_BL_READ_SECTOR_P_STATUS_LEN-1)
+        for i in data_buf[1:COMMAND_BL_READ_PAGE_PROTECT_STATUS_LEN]:
+            Write_to_serial_port(i,COMMAND_BL_READ_PAGE_PROTECT_STATUS_LEN-1)
         
         ret_value = read_bootloader_reply(data_buf[1])
 
@@ -644,8 +643,8 @@ def read_bootloader_reply(command_code):
             elif(command_code) == COMMAND_BL_MEM_WRITE:
                 process_COMMAND_BL_MEM_WRITE(len_to_follow)
                 
-            elif(command_code) == COMMAND_BL_READ_SECTOR_P_STATUS:
-                process_COMMAND_BL_READ_SECTOR_STATUS(len_to_follow)
+            elif(command_code) == COMMAND_BL_READ_PAGE_PROTECT_STATUS:
+                process_COMMAND_BL_READ_PAGE_STATUS(len_to_follow)
                 
             elif(command_code) == COMMAND_BL_EN_R_W_PROTECT:
                 process_COMMAND_BL_EN_R_W_PROTECT(len_to_follow)
@@ -703,7 +702,7 @@ while True:
     print("   BL_MEM_WRITE----------------------------> 7")
     print("   BL_EN_R_W_PROTECT-----------------------> 8")
     print("   BL_MEM_READ-----------------------------> 9")
-    print("   BL_READ_SECTOR_PROT_STATUS--------------> 10")
+    print("   BL_READ_PAGE_PROT_STATUS----------------> 10")
     print("   BL_OTP_READ-----------------------------> 11")
     print("   BL_DIS_R_W_PROTECT----------------------> 12")
     #print("   BL_MY_NEW_COMMAND-----------------------> 13")
