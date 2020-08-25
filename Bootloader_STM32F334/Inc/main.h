@@ -123,15 +123,15 @@ void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_MEM_WRITE command */
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_EN_R_W_PROTECT command */
-void bootloader_handle_en_r_w_protect(uint8_t* bl_rx_buffer);
+void bootloader_handle_en_r_w_protect_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_MEM_READ command */
-void bootloader_handle_mem_read(uint8_t* bl_rx_buffer);
+void bootloader_handle_mem_read_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_READ_PAGE_PROT_STATUS command */
-void bootloader_handle_read_page_prot_status(uint8_t* bl_rx_buffer);
+void bootloader_handle_read_page_prot_status_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_OTP_READ command */
-void bootloader_handle_read_otp(uint8_t* bl_rx_buffer);
+void bootloader_handle_read_otp_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_DIS_R_W_PROTECT command */
-void bootloader_handle_dis_r_w_protect(uint8_t* bl_rx_buffer);
+void bootloader_handle_dis_r_w_protect_cmd(uint8_t* bl_rx_buffer);
 
 void bootloader_send_ack(uint8_t follow_len);
 void bootloader_send_nack(void);
@@ -143,6 +143,7 @@ uint8_t get_flash_rdp_level(void);
 uint8_t verify_address(uint32_t go_address);
 uint8_t execute_flash_erase(uint8_t page_number, uint8_t number_of_pages);
 uint8_t execute_mem_write(uint16_t* pBuffer, uint32_t mem_address, uint8_t len);
+uint8_t configure_flash_page_rw_protection(uint8_t page_details, uint8_t protection_mode, uint8_t disable);
 
 
 /* Bootloader version 1.0 */

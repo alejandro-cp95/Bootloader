@@ -347,19 +347,19 @@ void bootloader_uart_read_data(void)
 				bootloader_handle_mem_write_cmd(bl_rx_buffer);
 				break;
 			case BL_EN_R_W_PROTECT:
-				bootloader_handle_en_r_w_protect(bl_rx_buffer);
+				bootloader_handle_en_r_w_protect_cmd(bl_rx_buffer);
 				break;
 			case BL_MEM_READ:
-				bootloader_handle_mem_read(bl_rx_buffer);
+				bootloader_handle_mem_read_cmd(bl_rx_buffer);
 				break;
 			case BL_READ_PAGE_PROT_STATUS:
-				bootloader_handle_read_page_prot_status(bl_rx_buffer);
+				bootloader_handle_read_page_prot_status_cmd(bl_rx_buffer);
 				break;
 			case BL_OTP_READ:
-				bootloader_handle_read_otp(bl_rx_buffer);
+				bootloader_handle_read_otp_cmd(bl_rx_buffer);
 				break;
 			case BL_DIS_R_W_PROTECT:
-				bootloader_handle_dis_r_w_protect(bl_rx_buffer);
+				bootloader_handle_dis_r_w_protect_cmd(bl_rx_buffer);
 				break;
 			default:
 				printmsg("BL_DEBUG_MSG: Invalid command code received from host\r\n");
@@ -686,29 +686,83 @@ void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer)
 	}
 }
 
-void bootloader_handle_en_r_w_protect(uint8_t* bl_rx_buffer)
+/* Enables Read/Write protection of the flash memory */
+void bootloader_handle_en_r_w_protect_cmd(uint8_t* bl_rx_buffer)
+{
+	uint8_t status=0x00;
+	printmsg("BL_DEBUG_MSG: bootloader_handle_en_r_w_protect_cmd\n\r");
+
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
+
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
+
+	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(1);
+
+		status=configure_flash_page_rw_protection(bl_rx_buffer[2],bl_rx_buffer[3],0);
+
+		printmsg("BL_DEBUG_MSG: Configure flash protection status: %#x\n\r",status);
+
+		bootloader_uart_write_data(&status,1);
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: Checksum fail\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
+}
+
+void bootloader_handle_mem_read_cmd(uint8_t* bl_rx_buffer)
 {
 
 }
 
-void bootloader_handle_mem_read(uint8_t* bl_rx_buffer)
+void bootloader_handle_read_page_prot_status_cmd(uint8_t* bl_rx_buffer)
 {
 
 }
 
-void bootloader_handle_read_page_prot_status(uint8_t* bl_rx_buffer)
+void bootloader_handle_read_otp_cmd(uint8_t* bl_rx_buffer)
 {
 
 }
 
-void bootloader_handle_read_otp(uint8_t* bl_rx_buffer)
+/* Disables Read/Write protection of the flash memory */
+void bootloader_handle_dis_r_w_protect_cmd(uint8_t* bl_rx_buffer)
 {
+	uint8_t status=0x00;
+	printmsg("BL_DEBUG_MSG: bootloader_handle_dis_r_w_protect_cmd\n\r");
 
-}
+	// Total length of the command packet
+	uint32_t command_packet_len=bl_rx_buffer[0]+1;
 
-void bootloader_handle_dis_r_w_protect(uint8_t* bl_rx_buffer)
-{
+	// Extract the CRC32 sent by the Host
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len-4));
 
+	if(!bootloader_verify_crc(bl_rx_buffer,command_packet_len-4,host_crc))
+	{
+		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
+		// Checksum is correct
+		bootloader_send_ack(1);
+
+		status=configure_flash_page_rw_protection(0,0,1);
+
+		printmsg("BL_DEBUG_MSG: Configure flash protection status: %#x\n\r",status);
+
+		bootloader_uart_write_data(&status,1);
+	}
+	else
+	{
+		printmsg("BL_DEBUG_MSG: Checksum fail\n\r");
+		// Checksum is wrong. Send nack
+		bootloader_send_nack();
+	}
 }
 
 /* This function sends ACK if CRC matches along with "length to follow" */
@@ -871,6 +925,229 @@ uint8_t execute_mem_write(uint16_t* pBuffer, uint32_t mem_address, uint8_t len)
 	}
 	HAL_FLASH_Lock();
 	return status;
+}
+
+/* Modifying user option bytes:
+ * • Check that no Flash memory operation is ongoing by checking the BSY bit in the FLASH_SR register.
+ * • Unlock the OPTWRE bit in the FLASH_CR register (This bit is set on writing the correct key sequence to the FLASH_OPTKEYR register)
+ * • Set the OPTPG bit in the FLASH_CR register
+ * • Write the data (half-word) to the desired address
+ * • Wait for the BSY bit to be reset.
+ * • Read the programmed value and verify. */
+uint8_t configure_flash_page_rw_protection(uint8_t page_details, uint8_t protection_mode, uint8_t disable)
+{
+	/* First configure the protection mode
+	 * protection_mode = 1 means write protect of the user flash pages
+	 * protection_mode = 2 means read/write protect of the user flash pages */
+	volatile uint16_t* pWP1 = (uint16_t*)0x1FFFF80A;
+	volatile uint16_t* pWP0 = (uint16_t*)0x1FFFF808;
+	volatile uint16_t* pRDP = (uint16_t*)0x1FFFF800;
+
+	if(disable)
+	{
+		// Disable all R/W protection on pages
+
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 1. Unlock flash */
+		HAL_FLASH_Unlock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+		/* 2. Option byte configuration unlock */
+		HAL_FLASH_OB_Unlock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 3. Erase option bytes by setting OPTER bit and after that STRT bit */
+		FLASH->CR |= (1<<5);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+		FLASH->CR |= (1<<6);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 4. After the erasure is complete, reset the OPTER bit */
+		FLASH->CR &= ~(1<<5);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 5. Set the OPTPG bit to allow programming option bytes */
+		FLASH->CR |= (1<<4);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 6. */
+		/* Here we are disabling read and write protection for the pages.
+		 * When read protection is disabled a POR should be done */
+		*pWP0=(uint16_t)0xFF;
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+		*pWP1=(uint16_t)0xFF;
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+		*pRDP=(uint16_t)0xAA;
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 7. Reset the OPTPG bit to complete/close programming option bytes */
+		FLASH->CR &= ~(1<<4);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 8. Launch/Apply the Option bytes (OBL_LAUNCH bit is set-system reset will be performed after this) */
+		FLASH->CR |= (1<<13);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 9. Lock option bytes (OPTWRE is reset) */
+		HAL_FLASH_OB_Lock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 10. Lock the Flash (LOCK bit is set) */
+		HAL_FLASH_Lock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		return 0;
+	}
+	if(protection_mode==(uint8_t) 1)
+	{
+		/* We are putting write protection on the pages encoded in page_details */
+
+		/* - The write protection is implemented with a granularity of 2 pages. It is activated by
+		 * configuring the WRP[1:0] option bytes, and then by reloading them by setting the
+		 * OBL_LAUNCH bit in the FLASH_CR register. */
+
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 1. Unlock flash */
+		HAL_FLASH_Unlock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+		/* 2. Option byte configuration unlock */
+		HAL_FLASH_OB_Unlock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 3. Erase option bytes by setting OPTER bit and after that STRT bit */
+		FLASH->CR |= (1<<5);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+		FLASH->CR |= (1<<6);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 4. After the erasure is complete, reset the OPTER bit */
+		FLASH->CR &= ~(1<<5);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 5. Set the OPTPG bit to allow programming option bytes */
+		FLASH->CR |= (1<<4);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 6. */
+		/* Here we are setting just write protection for the pages */
+
+		/* Put write protection on pages */
+		*pWP0&=~((uint16_t)page_details);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 7. Reset the OPTPG bit to complete/close programming option bytes */
+		FLASH->CR &= ~(1<<4);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 8. Launch/Apply the Option bytes (OBL_LAUNCH bit is set-system reset will be performed after this) */
+		FLASH->CR |= (1<<13);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 9. Lock option bytes (OPTWRE is reset) */
+		HAL_FLASH_OB_Lock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 10. Lock the Flash (LOCK bit is set) */
+		HAL_FLASH_Lock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+	}
+	else if(protection_mode==(uint8_t) 2)
+	{
+		/* We are putting read/write protection */
+
+		/* - The write protection is implemented with a granularity of 2 pages. It is activated by
+		 * configuring the WRP[1:0] option bytes, and then by reloading them by setting the
+		 * OBL_LAUNCH bit in the FLASH_CR register.
+		 * - The read protection is activated by setting the RDP option byte and then,
+		 * by applying a system reset to reload the new RDP option byte.*/
+
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 1. Unlock flash */
+		HAL_FLASH_Unlock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+		/* 2. Option byte configuration unlock */
+		HAL_FLASH_OB_Unlock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 3. Erase option bytes by setting OPTER bit and after that STRT bit */
+		FLASH->CR |= (1<<5);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+		FLASH->CR |= (1<<6);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 4. After the erasure is complete, reset the OPTER bit */
+		FLASH->CR &= ~(1<<5);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 5. Set the OPTPG bit to allow programming option bytes */
+		FLASH->CR |= (1<<4);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY)!=RESET);
+
+		/* 6. */
+		/* Here we are setting read and write protection for the pages */
+
+		/* Put read and write protection on pages */
+		*pWP0&=~(page_details);
+		*pRDP=(uint16_t)0xFF;
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 7. Reset the OPTPG bit to complete/close programming option bytes */
+		FLASH->CR &= ~(1<<4);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 8. Launch/Apply the Option bytes (OBL_LAUNCH bit is set-system reset will be performed after this) */
+		FLASH->CR |= (1<<13);
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 9. Lock option bytes (OPTWRE is reset) */
+		HAL_FLASH_OB_Lock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		/* 10. Lock the Flash (LOCK bit is set) */
+		HAL_FLASH_Lock();
+		/* Wait till no active operation on flash */
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+	}
+	return 0;
 }
 
 /**
