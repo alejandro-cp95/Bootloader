@@ -19,11 +19,13 @@ COMMAND_BL_GO_TO_ADDR                               = 0x55
 COMMAND_BL_FLASH_ERASE                              = 0x56
 COMMAND_BL_MEM_WRITE                                = 0x57
 COMMAND_BL_EN_R_W_PROTECT                           = 0x58
-COMMAND_BL_MEM_READ                                 = 0x59
-COMMAND_BL_READ_PAGE_PROTECT_STATUS                 = 0x5A
-COMMAND_BL_OTP_READ                                 = 0x5B
-COMMAND_BL_DIS_R_W_PROTECT                          = 0x5C
-COMMAND_BL_MY_NEW_COMMAND                           = 0x5D
+COMMAND_BL_EN_W_PROTECT                             = 0x59
+COMMAND_BL_MEM_READ                                 = 0x5A
+COMMAND_BL_READ_PAGE_PROTECT_STATUS                 = 0x5B
+COMMAND_BL_OTP_READ                                 = 0x5C
+COMMAND_BL_DIS_R_W_PROTECT                          = 0x5D
+COMMAND_BL_DIS_W_PROTECT                            = 0x5E
+COMMAND_BL_MY_NEW_COMMAND                           = 0x5F
 
 
 #len details of the command
@@ -34,9 +36,11 @@ COMMAND_BL_GET_RDP_STATUS_LEN                       = 6
 COMMAND_BL_GO_TO_ADDR_LEN                           = 10
 COMMAND_BL_FLASH_ERASE_LEN                          = 8
 COMMAND_BL_MEM_WRITE_LEN                            = 11
-COMMAND_BL_EN_R_W_PROTECT_LEN                       = 8
+COMMAND_BL_EN_R_W_PROTECT_LEN                       = 6
+COMMAND_BL_EN_W_PROTECT_LEN                         = 8
 COMMAND_BL_READ_PAGE_PROTECT_STATUS_LEN             = 6
 COMMAND_BL_DIS_R_W_PROTECT_LEN                      = 6
+COMMAND_BL_DIS_W_PROTECT_LEN                        = 8
 COMMAND_BL_MY_NEW_COMMAND_LEN                       = 8
 
 
@@ -186,7 +190,10 @@ def process_COMMAND_BL_GO_TO_ADDR(length):
     addr_status=0
     value = read_serial_port(length)
     addr_status = bytearray(value)
-    print("\n   Address Status : ",hex(addr_status[0]))
+    if(addr_status[0]==0):
+        print("\n   Success!")
+    else:
+        print("\n   Invalid address!")
 
 def process_COMMAND_BL_FLASH_ERASE(length):
     erase_status=0
@@ -270,6 +277,16 @@ def process_COMMAND_BL_READ_PAGE_STATUS(length):
         
 
 
+def process_COMMAND_BL_DIS_W_PROTECT(length):
+    status=0
+    value = read_serial_port(length)
+    status = bytearray(value)
+    if(status[0]):
+        print("\n   FAIL")
+    else:
+        print("\n   SUCCESS")
+    print("\n   The changes on the protection will be applied until next Power On Reset")
+
 def process_COMMAND_BL_DIS_R_W_PROTECT(length):
     status=0
     value = read_serial_port(length)
@@ -278,6 +295,8 @@ def process_COMMAND_BL_DIS_R_W_PROTECT(length):
         print("\n   FAIL")
     else:
         print("\n   SUCCESS")
+    print("\n   The changes on the protection will be applied until next Power On Reset")
+    print("\n   But the flash is already erased, so the bootloader is not going to respond")
 
 def process_COMMAND_BL_EN_R_W_PROTECT(length):
     status=0
@@ -287,8 +306,18 @@ def process_COMMAND_BL_EN_R_W_PROTECT(length):
         print("\n   FAIL")
     else:
         print("\n   SUCCESS")
+    print("\n   The changes on the protection will be applied until next Power On Reset")
+    print("\n   The protections are done on all the flash!")
 
-
+def process_COMMAND_BL_EN_W_PROTECT(length):
+    status=0
+    value=read_serial_port(length)
+    status = bytearray(value)
+    if(status[0]):
+        pritn("\n   FAIL")
+    else:
+        print("\n   SUCCESS")
+    print("\n   The changes on the protection will be applied until next Power On Reset")
 
 
 def decode_menu_command_code(command):
@@ -499,38 +528,16 @@ def decode_menu_command_code(command):
             ret_value = read_bootloader_reply(data_buf[1])
         mem_write_active=0
 
-            
-    
     elif(command == 8):
         print("\n   Command == > BL_EN_R_W_PROTECT")
-        total_page = int(input("\n   How many pages do you want to protect ?: "))
-        page_numbers = [0,0,0,0,0,0,0,0]
-        page_details=0
-        for x in range(total_page):
-            page_numbers[x]=int(input("\n   Enter page number[{0}]: ".format(x+1) ))
-            page_details = page_details | (1 << page_numbers[x])
-
-        #print("Page details",page_details)
-        print("\n   Mode:Flash pages Write Protection: 1")
-        print("\n   Mode:Flash pages Read/Write Protection: 2")
-        mode=input("\n   Enter Page Protection Mode(1 or 2 ):")
-        mode = int(mode)
-        if(mode != 2 and mode != 1):
-            printf("\n   Invalid option : Command Dropped")
-            return
-        if(mode == 2):
-            print("\n   This feature is currently not supported !") 
-            return
 
         data_buf[0] = COMMAND_BL_EN_R_W_PROTECT_LEN-1 
         data_buf[1] = COMMAND_BL_EN_R_W_PROTECT 
-        data_buf[2] = page_details 
-        data_buf[3] = mode 
         crc32       = get_crc(data_buf,COMMAND_BL_EN_R_W_PROTECT_LEN-4) 
-        data_buf[4] = word_to_byte(crc32,1,1) 
-        data_buf[5] = word_to_byte(crc32,2,1) 
-        data_buf[6] = word_to_byte(crc32,3,1) 
-        data_buf[7] = word_to_byte(crc32,4,1) 
+        data_buf[2] = word_to_byte(crc32,1,1) 
+        data_buf[3] = word_to_byte(crc32,2,1) 
+        data_buf[4] = word_to_byte(crc32,3,1) 
+        data_buf[5] = word_to_byte(crc32,4,1) 
 
         Write_to_serial_port(data_buf[0],1)
         
@@ -539,11 +546,43 @@ def decode_menu_command_code(command):
         
         ret_value = read_bootloader_reply(data_buf[1])
             
-        
+          
+    
     elif(command == 9):
+        print("\n   Command == > BL_EN_W_PROTECT")
+        print("\n***The Write Protection is performed with a granularity of 2 pages***")
+        total_page = int(input("\n   How many sectors of 2 pages do you want to protect?: "))
+        page_numbers = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        page_details=0
+        for x in range(total_page):
+            page_numbers[x]=int(input("\n   Enter any page number of the sector[{0}]: ".format(x+1) ))
+            page_numbers[x]=int(page_numbers[x]/2)
+            page_details = page_details | (1 << page_numbers[x])
+        page_details0=(page_details&0xFF)
+        page_details1=((page_details>>8)&0xFF)
+
+        data_buf[0] = COMMAND_BL_EN_W_PROTECT_LEN-1 
+        data_buf[1] = COMMAND_BL_EN_W_PROTECT 
+        data_buf[2] = page_details0
+        data_buf[3] = page_details1
+        crc32       = get_crc(data_buf,COMMAND_BL_EN_W_PROTECT_LEN-4) 
+        data_buf[4] = word_to_byte(crc32,1,1) 
+        data_buf[5] = word_to_byte(crc32,2,1) 
+        data_buf[6] = word_to_byte(crc32,3,1) 
+        data_buf[7] = word_to_byte(crc32,4,1) 
+
+        Write_to_serial_port(data_buf[0],1)
+        
+        for i in data_buf[1:COMMAND_BL_EN_W_PROTECT_LEN]:
+            Write_to_serial_port(i,COMMAND_BL_EN_W_PROTECT_LEN-1)
+        
+        ret_value = read_bootloader_reply(data_buf[1])
+            
+        
+    elif(command == 10):
         print("\n   Command == > COMMAND_BL_MEM_READ")
         print("\n   This command is not supported")
-    elif(command == 10):
+    elif(command == 11):
         print("\n   Command == > COMMAND_BL_READ_PAGE_PROTECT_STATUS")
         data_buf[0] = COMMAND_BL_READ_PAGE_PROTECT_STATUS_LEN-1 
         data_buf[1] = COMMAND_BL_READ_PAGE_PROTECT_STATUS 
@@ -561,10 +600,11 @@ def decode_menu_command_code(command):
         
         ret_value = read_bootloader_reply(data_buf[1])
 
-    elif(command == 11):
+    elif(command == 12):
         print("\n   Command == > COMMAND_OTP_READ")
         print("\n   This command is not supported")
-    elif(command == 12):
+        
+    elif(command == 13):
         print("\n   Command == > COMMAND_BL_DIS_R_W_PROTECT")
         data_buf[0] = COMMAND_BL_DIS_R_W_PROTECT_LEN-1 
         data_buf[1] = COMMAND_BL_DIS_R_W_PROTECT 
@@ -580,6 +620,36 @@ def decode_menu_command_code(command):
             Write_to_serial_port(i,COMMAND_BL_DIS_R_W_PROTECT_LEN-1)
         
         ret_value = read_bootloader_reply(data_buf[1])
+
+    elif(command == 14):
+        print("\n   Command == > COMMAND_BL_DIS_W_PROTECT")
+        print("\n***The Write Protection is performed with a granularity of 2 pages***")
+        total_page = int(input("\n   How many sectors of 2 pages do you want to disable the protection of?: "))
+        page_numbers = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        page_details=0
+        for x in range(total_page):
+            page_numbers[x]=int(input("\n   Enter any page number of the sector[{0}]: ".format(x+1) ))
+            page_numbers[x]=int(page_numbers[x]/2)
+            page_details = page_details | (1 << page_numbers[x])
+        page_details0=(page_details&0xFF)
+        page_details1=((page_details>>8)&0xFF)
+        data_buf[0] = COMMAND_BL_DIS_W_PROTECT_LEN-1 
+        data_buf[1] = COMMAND_BL_DIS_W_PROTECT
+        data_buf[2] = page_details0
+        data_buf[3] = page_details1
+        crc32       = get_crc(data_buf,COMMAND_BL_DIS_W_PROTECT_LEN-4) 
+        data_buf[4] = word_to_byte(crc32,1,1) 
+        data_buf[5] = word_to_byte(crc32,2,1) 
+        data_buf[6] = word_to_byte(crc32,3,1) 
+        data_buf[7] = word_to_byte(crc32,4,1) 
+
+        Write_to_serial_port(data_buf[0],1)
+        
+        for i in data_buf[1:COMMAND_BL_DIS_W_PROTECT_LEN]:
+            Write_to_serial_port(i,COMMAND_BL_DIS_W_PROTECT_LEN-1)
+        
+        ret_value = read_bootloader_reply(data_buf[1])
+        
         
     #elif(command == 13):
         #print("\n   Command == > COMMAND_BL_MY_NEW_COMMAND ")
@@ -648,9 +718,15 @@ def read_bootloader_reply(command_code):
                 
             elif(command_code) == COMMAND_BL_EN_R_W_PROTECT:
                 process_COMMAND_BL_EN_R_W_PROTECT(len_to_follow)
+
+            elif(command_code) == COMMAND_BL_EN_W_PROTECT:
+                process_COMMAND_BL_EN_W_PROTECT(len_to_follow)
                 
             elif(command_code) == COMMAND_BL_DIS_R_W_PROTECT:
                 process_COMMAND_BL_DIS_R_W_PROTECT(len_to_follow)
+
+            elif(command_code) == COMMAND_BL_DIS_W_PROTECT:
+                process_COMMAND_BL_DIS_W_PROTECT(len_to_follow)
                 
             elif(command_code) == COMMAND_BL_MY_NEW_COMMAND:
                 process_COMMAND_BL_MY_NEW_COMMAND(len_to_follow)
@@ -693,31 +769,33 @@ while True:
   
     
     print("\n   Which BL command do you want to send ??\n")
-    print("   BL_GET_VER------------------------------> 1")
-    print("   BL_GET_HELP-----------------------------> 2")
-    print("   BL_GET_CID------------------------------> 3")
-    print("   BL_GET_RDP_STATUS-----------------------> 4")
-    print("   BL_GO_TO_ADDR---------------------------> 5")
-    print("   BL_FLASH_ERASE--------------------------> 6")
-    print("   BL_MEM_WRITE----------------------------> 7")
-    print("   BL_EN_R_W_PROTECT-----------------------> 8")
-    print("   BL_MEM_READ-----------------------------> 9")
-    print("   BL_READ_PAGE_PROT_STATUS----------------> 10")
-    print("   BL_OTP_READ-----------------------------> 11")
-    print("   BL_DIS_R_W_PROTECT----------------------> 12")
+    print("   BL_GET_VER------------------------------>  1")
+    print("   BL_GET_HELP----------------------------->  2")
+    print("   BL_GET_CID------------------------------>  3")
+    print("   BL_GET_RDP_STATUS----------------------->  4")
+    print("   BL_GO_TO_ADDR--------------------------->  5")
+    print("   BL_FLASH_ERASE-------------------------->  6")
+    print("   BL_MEM_WRITE---------------------------->  7")
+    print("   BL_EN_R_W_PROTECT----------------------->  8")
+    print("   BL_EN_W_PROTECT------------------------->  9")
+    print("   BL_MEM_READ-----------------------------> 10")
+    print("   BL_READ_PAGE_PROT_STATUS----------------> 11")
+    print("   BL_OTP_READ-----------------------------> 12")
+    print("   BL_DIS_R_W_PROTECT (+ FLASH erasing)----> 13")
+    print("   BL_DIS_W_PROTECT------------------------> 14")
     #print("   BL_MY_NEW_COMMAND-----------------------> 13")
-    print("   MENU_EXIT-------------------------------> 0")
+    print("   MENU_EXIT------------------------------->  0")
 
     #command_code = int(input("\n   Type the command code here :") )
 
-    command_code = input("\n   Type the command code here :")
+    command_code = input("\n   Type the command code here: ")
 
     if(not command_code.isdigit()):
         print("\n   Please Input valid code shown above")
     else:
         decode_menu_command_code(int(command_code))
 
-    input("\n   Press any key to continue  :")
+    input("\n   Press any key to continue: ")
     purge_serial_port()
 
 

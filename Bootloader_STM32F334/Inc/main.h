@@ -124,6 +124,8 @@ void bootloader_handle_flash_erase_cmd(uint8_t* bl_rx_buffer);
 void bootloader_handle_mem_write_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_EN_R_W_PROTECT command */
 void bootloader_handle_en_r_w_protect_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_EN_W_PROTECT command */
+void bootloader_handle_en_w_protect_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_MEM_READ command */
 void bootloader_handle_mem_read_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_READ_PAGE_PROT_STATUS command */
@@ -132,6 +134,8 @@ void bootloader_handle_read_page_prot_status_cmd(uint8_t* bl_rx_buffer);
 void bootloader_handle_read_otp_cmd(uint8_t* bl_rx_buffer);
 /* Helper function to handle BL_DIS_R_W_PROTECT command */
 void bootloader_handle_dis_r_w_protect_cmd(uint8_t* bl_rx_buffer);
+/* Helper function to handle BL_DIS_W_PROTECT command */
+void bootloader_handle_dis_w_protect_cmd(uint8_t* bl_rx_buffer);
 
 void bootloader_send_ack(uint8_t follow_len);
 void bootloader_send_nack(void);
@@ -143,7 +147,9 @@ uint8_t get_flash_rdp_level(void);
 uint8_t verify_address(uint32_t go_address);
 uint8_t execute_flash_erase(uint8_t page_number, uint8_t number_of_pages);
 uint8_t execute_mem_write(uint16_t* pBuffer, uint32_t mem_address, uint8_t len);
-uint8_t configure_flash_page_rw_protection(uint8_t page_details, uint8_t protection_mode, uint8_t disable);
+void configure_flash_protection(uint8_t rw, uint16_t description,uint8_t disable);
+uint8_t configure_flash_page_r_protection(uint8_t disable);
+uint8_t configure_flash_page_w_protection(uint16_t page_details, uint8_t disable);
 
 
 /* Bootloader version 1.0 */
@@ -164,16 +170,20 @@ uint8_t configure_flash_page_rw_protection(uint8_t page_details, uint8_t protect
 #define BL_FLASH_ERASE				0x56
 /* This command is used to write data in to different memories of the MCU */
 #define BL_MEM_WRITE				0x57
-/* This command is used to enable or disable read/write protect on different pages of the user flash */
+/* This command is used to enable read and write protections on the user flash */
 #define BL_EN_R_W_PROTECT			0x58
+/* This command is used to enable write protection on different pages of the user flash */
+#define BL_EN_W_PROTECT				0x59
 /* This command is used to read data from different memories of the microcontroller */
-#define BL_MEM_READ					0x59
+#define BL_MEM_READ					0x5A
 /* This command is used to read all the page protection status */
-#define BL_READ_PAGE_PROT_STATUS	0x5A
+#define BL_READ_PAGE_PROT_STATUS	0x5B
 /* This command is used to read the OTP contents */
-#define BL_OTP_READ					0x5B
-/* This command is used to disable all page read/write protections */
-#define BL_DIS_R_W_PROTECT			0x5C
+#define BL_OTP_READ					0x5C
+/* This command is used to disable all pages read and write protections */
+#define BL_DIS_R_W_PROTECT			0x5D
+/* This command is used to disable write protection on different pages of the flash */
+#define BL_DIS_W_PROTECT			0x5E
 
 #ifdef __cplusplus
 }
