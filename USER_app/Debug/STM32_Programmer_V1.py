@@ -184,7 +184,8 @@ def process_COMMAND_BL_GET_CID(length):
 def process_COMMAND_BL_GET_RDP_STATUS(length):
     value = read_serial_port(length)
     rdp = bytearray(value)
-    print("\n   RDP Status : ",hex(rdp[0]))
+    print("\n   Current RDP Status: ",hex(rdp[0]))
+    print("\n   RDP Status after Power On Reset: ",hex(rdp[1]))
 
 def process_COMMAND_BL_GO_TO_ADDR(length):
     addr_status=0

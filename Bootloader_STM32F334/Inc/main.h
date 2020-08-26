@@ -143,7 +143,7 @@ uint8_t bootloader_verify_crc(uint8_t* pData,uint32_t len, uint32_t crc_host);
 void bootloader_uart_write_data(uint8_t* pBuffer, uint32_t len);
 uint8_t get_bootloader_version(void);
 uint16_t get_mcu_chip_id(void);
-uint8_t get_flash_rdp_level(void);
+void get_flash_rdp_level(uint8_t* rdp_level);
 uint8_t verify_address(uint32_t go_address);
 uint8_t execute_flash_erase(uint8_t page_number, uint8_t number_of_pages);
 uint8_t execute_mem_write(uint16_t* pBuffer, uint32_t mem_address, uint8_t len);

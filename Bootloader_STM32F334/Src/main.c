@@ -528,7 +528,7 @@ void bootloader_handle_getcid_cmd(uint8_t* bl_rx_buffer)
 /* Gets the read protection status */
 void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer)
 {
-	uint8_t rdp_level=0;
+	uint8_t rdp_level[2]={0,0};
 	printmsg("BL_DEBUG_MSG: bootloader_handle_getrdp_cmd\n\r");
 
 	// Total length of the command packet
@@ -541,10 +541,10 @@ void bootloader_handle_getrdp_cmd(uint8_t* bl_rx_buffer)
 	{
 		printmsg("BL_DEBUG_MSG: Checksum success!\n\r");
 		// Checksum is correct
-		bootloader_send_ack(1);
-		rdp_level=get_flash_rdp_level();
-		printmsg("BL_DEBUG_MSG: RDP level: %d %#x!\r\n",rdp_level,rdp_level);
-		bootloader_uart_write_data(&rdp_level,1);
+		bootloader_send_ack(2);
+		get_flash_rdp_level(rdp_level);
+		printmsg("BL_DEBUG_MSG: RDP level: %d %#x!\r\n",rdp_level[0],rdp_level[0]);
+		bootloader_uart_write_data(rdp_level,2);
 	}
 	else
 	{
@@ -897,19 +897,23 @@ uint16_t get_mcu_chip_id(void)
 	return cid;
 }
 
-/* Returns the read protection status */
-uint8_t get_flash_rdp_level(void)
+/* Get the read protection status */
+void get_flash_rdp_level(uint8_t* rdp_level)
 {
-	uint8_t rdp_status=0;
-#if 0
-	FLASH_OBProgramInitTypeDef ob_handle;
-	HAL_FLASHEx_OBGetConfig(&ob_handle);
-	rdp_status=(uint8_t)ob_handle.RDPLevel;
-#else
 	volatile uint32_t* pOB_addr=(uint32_t*) 0x1FFFF800;
-	rdp_status=(uint8_t)(*pOB_addr);
-#endif
-	return rdp_status;
+	if(((FLASH->OBR>>1)&0x00000003)==0)
+	{
+		rdp_level[0]=0xAA;
+	}
+	else if(((FLASH->OBR>>1)&0x00000003)==1)
+	{
+		rdp_level[0]=0xFF;
+	}
+	else
+	{
+		rdp_level[0]=0xCC;
+	}
+	rdp_level[1]=(uint8_t)(*pOB_addr);
 }
 
 /* Verify the address sent by the host */
